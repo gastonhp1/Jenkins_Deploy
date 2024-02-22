@@ -1,0 +1,78 @@
+pipeline {
+    agent any
+    options {
+        skipDefaultCheckout true
+    }
+    environment {
+       TF_VAR_datacenter="${DATA_CENTER}"
+       TF_VAR_cluster="${CLUSTER}"
+       TF_VAR_esxi="${ESXI}"
+       TF_VAR_datastore="${DATASTORE}"
+       TF_VAR_network="${NETWORK}"
+       TF_VAR_server_hostname="${SERVER_HOSTNAME}"
+       TF_VAR_server_mac="${SERVER_MAC}"
+    }
+    parameters {
+        string(name: 'DATA_CENTER', defaultValue: 'xxx', description: 'vcenter data center',)
+        string(name: 'CLUSTER', defaultValue: 'xxx', description: 'data center cluster',)
+        string(name: 'ESXI', defaultValue: 'xxx', description: 'esxi hostname',)
+        string(name: 'DATASTORE', defaultValue: 'xxx', description: 'data center datastore',)
+        string(name: 'NETWORK', defaultValue: 'xxx', description: 'data center network',)
+        string(name: 'SERVER_HOSTNAME', defaultValue: 'xxx', description: 'server hostname',)
+        string(name: 'SERVER_MAC', defaultValue: 'xxx', description: 'server mac',)
+        string(name: 'SERVER_IP', defaultValue: 'xxx', description: 'server ip',)
+        string(name: 'SERVER_NETMASK', defaultValue: 'xxx', description: 'server netmask',)
+        string(name: 'SERVER_GATEWAY', defaultValue: 'xxx', description: 'server gateway',)
+        string(name: 'COBBLER_PROFILE', defaultValue: 'xxx', description: 'cobbler profile',)
+        choice(name: 'BUILD_DESTROY', description: '', choices: ['build' , 'destroy'])
+    }
+
+    stages {
+        stage('OS PROVISION') {
+            steps {
+                dir("/root/terraform"){
+                    sh """
+                    export TF_VAR_datacenter=${DATA_CENTER}
+                    export TF_VAR_cluster=${CLUSTER}
+                    export TF_VAR_esxi=${ESXI}
+                    export TF_VAR_datastore=${DATASTORE}
+                    export TF_VAR_network=${NETWORK}
+                    export TF_VAR_server_hostname=${SERVER_HOSTNAME}
+                    export TF_VAR_server_mac=${SERVER_MAC}
+                    terraform init
+                    terraform apply -auto-approve
+                    """
+                }
+            }
+        }
+    }
+    post {
+         always {
+             echo 'This will always run'
+         }
+
+    }
+
+
+
+
+    ------------------------------------
+
+
+
+
+
+
+
+
+I prefer use this format:
+
+terraform apply \
+  -var 'vpc_id=$(AWS_VPC_ID)' \
+  -var 'subnet_id=$(AWS_SUBNET_ID)' \
+  -var 'aws_region=$(AWS_REGION)' \
+  -var 'ami_id=$(AMI_ID)'\
+  -var 'instance_type=$(AWS_EC2_TYPE)' \
+  -var 'key_pair=$(KEY_PAIR_NAME)' \
+  -var 'tags={ "Owner":"$(OWNER)", "Service":"$(SERVICE)", "Terraform":"true", "Env":"$(ENV)" }'
+

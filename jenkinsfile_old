@@ -1,0 +1,50 @@
+pipeline {
+    agent {
+        any {
+            label "libvirt"
+        }
+    }
+    environment {
+        GIT_REPO_URL = "https://github.com/gastonhp1/libvirt_VM.git"
+        LIBVIRT_DEFAULT_URI = "qemu:///system"
+        TERRAFORM_PLAN_FILE = "libvirt.tfplan"
+        BUILD_ID = currentBuild.number.toString()
+    }
+    stages {
+        stage("Checkout") {
+            steps {
+                dir("${JENKINS_HOME}/workspace/tf-Libvirt-shared-workspace") {
+                    git branch: "main", url: env.GIT_REPO_URL, credentialsId: 'gastonhp1'
+                }
+            }
+        }
+        stage("Terraform Init") {
+            steps {
+                script {
+                    dir("${JENKINS_HOME}/workspace/tf-Libvirt-shared-workspace") {
+                        sh "export LIBVIRT_DEFAULT_URI=${env.LIBVIRT_DEFAULT_URI}"
+                        sh "terraform init"
+                    }
+                }
+            }
+        }
+        stage("Terraform Plan") {
+            steps {
+                script {
+                    dir("${JENKINS_HOME}/workspace/tf-Libvirt-shared-workspace") {
+                        sh "terraform plan -var 'build_id=${BUILD_ID}' -out=${env.TERRAFORM_PLAN_FILE}"
+                    }
+                }
+            }
+        }
+        stage("Terraform Apply") {
+            steps {
+                script {
+                    dir("${JENKINS_HOME}/workspace/tf-Libvirt-shared-workspace") {
+                        sh "terraform apply -auto-approve ${env.TERRAFORM_PLAN_FILE}"
+                    }
+                }
+            }
+        }
+    }
+}
