@@ -29,8 +29,20 @@ pipeline {
     stages {
         stage("Checkout SCM") {
             steps {
-                git branch: "main", url: env.GIT_REPO_URL, credentialsId: env.TF_VAR_SSH_CREDENTIALS_USR
+                git branch: "main", url: env.GIT_REPO_URL, credentialsId: credentials(SSH_CREDENTIALS_USR)
             }
+        }
+        stage('Check Existing VM') {
+           steps {
+               script {
+                   def existingVM = sh(script: "terraform state list | grep -e '^libvirt_domain.virtual_machine.*${params.TF_VAR_HOSTNAME}'", returnStdout: true).trim()
+                   if (existingVM) {
+                       echo "A virtual machine with the hostname ${params.TF_VAR_HOSTNAME} already exists. Aborting deployment."
+                       currentBuild.result = 'ABORTED'
+                       error "Virtual machine already deployed"
+                   }
+               }
+           }
         }
         stage("Setup virtual machine settings") {
             steps {
