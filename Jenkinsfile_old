@@ -11,6 +11,8 @@ pipeline {
         string(name: 'REMOTE_ISO', defaultValue: 'https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img', description: 'virtual machine remote image',)
         string(name: 'MEMORY', defaultValue: '2048', description: 'virtual machine memory size',)
         string(name: 'VCPU', defaultValue: '4', description: 'virtual machine vcpus',)
+        string(name: 'SSH_USERNAME', defaultValue: 'gastonhp1', description: 'ssh username',)
+        string(name: 'SSH_PASSWORD', defaultValue: 'Pass.123!', description: 'ssh password',)
     }
     environment {
             GIT_REPO_URL = "https://github.com/gastonhp1/libvirt_VM.git"
@@ -23,25 +25,20 @@ pipeline {
             TF_VAR_REMOTE_ISO = "${REMOTE_ISO}"
             TF_VAR_MEMORY = "${MEMORY}"
             TF_VAR_VCPU = "${VCPU}"
-            TF_VAR_SSH_CREDENTIALS = credentials('SSH_CREDENTIALS')
-            TF_VAR_SSH_AUTHORIZED_KEY = credentials('SSH_AUTHORIZED_KEY')
-            }
+            TF_VAR_SSH_USERNAME = "${SSH_USERNAME}"
+            TF_VAR_PASSWORD = "${SSH_PASSWORD}"
+        }
     stages {
         stage("Checkout SCM") {
             steps {
-                git branch: "main", url: env.GIT_REPO_URL, credentialsId: env.TF_VAR_SSH_CREDENTIALS_USR
+                git branch: "main", url: env.GIT_REPO_URL, credentialsId: env.CREDENTIALS_ID
             }
         }
-        stage("Setup virtual machine settings") {
+        stage("Preparing") {
             steps {
                 script {
-                    echo "Setup credentials in cloud-config.yml"
-                    sh "sed -i 's/user: .*/user: $TF_VAR_SSH_CREDENTIALS_USR/' ${WORKSPACE}/config/cloud_init.yml"
-                    sh "sed -i 's/password: .*/password: $TF_VAR_SSH_CREDENTIALS_PSW/' ${WORKSPACE}/config/cloud_init.yml"
-                    def escapedKey = TF_VAR_SSH_AUTHORIZED_KEY.replaceAll("[/\\\\&]", { '\\\\' + it })
-                    sh "sed -i \"s/ssh_authorized_keys: .*/ssh_authorized_keys: \\\\n - ${escapedKey}/\" ${WORKSPACE}/config/cloud_init.yml"
                     sh "ls -lrt"
-                    echo "Build number:"
+                    echo 'Build number:'
                     echo env.BUILD_ID
                 }
             }
@@ -65,21 +62,9 @@ pipeline {
             steps {
                 script {
                     if (params.Action == 'Build') {
-                        sh """
-                        terraform apply \
-                            -var='vmname=${TF_VAR_HOSTNAME}' \
-                            -var='poolpath=${TF_VAR_POOLPATH}' \
-                            -var='remote_iso=${TF_VAR_REMOTE_ISO}' \
-                            -var='mem=${TF_VAR_MEMORY}' \
-                            -var='vcpu=${TF_VAR_VCPU}' \
-                            -var='ssh_username=$TF_VAR_SSH_CREDENTIALS_USR' \
-                            -var='password=$TF_VAR_SSH_CREDENTIALS_PSW' \
-                            -var='build_id=${BUILD_ID}' \
-                            --lock=false \
-                            -auto-approve
-                        """
+                        sh "terraform apply -var='build_id=${BUILD_ID}' --lock=false -auto-approve"
                     } else if (params.Action == 'Destroy') {
-                        sh "terraform destroy -var='build_id=${BUILD_ID}' --lock=false -auto-approve"
+                        sh "terraform destroy --lock=false -auto-approve"
                     } else {
                         error "Invalid value for Action: ${params.Action}"
                     }
