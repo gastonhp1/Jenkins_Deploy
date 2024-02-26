@@ -87,8 +87,7 @@ ssh_authorized_keys:
         stage("Terraform Action") {
             steps {
                 script {
-                    if (params.Action == 'Build') {
-                        sh """
+                    if (params.Action == 'Build') {                        sh """
                         terraform apply \
                             -var='vmname=${TF_VAR_HOSTNAME}' \
                             -var='poolpath=${TF_VAR_POOLPATH}' \
