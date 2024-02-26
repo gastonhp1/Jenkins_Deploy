@@ -61,6 +61,22 @@ ssh_authorized_keys:
                 }
             }
         }
+        stage("Check VM Existence") {
+                    steps {
+                        script {
+                            def vmName = TF_VAR_HOSTNAME
+                            def terraformShowOutput = sh(script: "terraform show", returnStdout: true).trim()
+                            def vmExists = terraformShowOutput.contains("instance-id: ${vmName}")
+                            if (vmExists && params.Action == 'Build') {
+                                echo "The virtual machine ${vmName} exists."
+                                currentBuild.result = 'ABORTED'
+                                error("Deploy aborted virtual machine hostname exists.")
+                            } else {
+                                echo "The virtual machine ${vmName} doesn't exists."
+                            }
+                        }
+                    }
+                }
         stage("Terraform Plan") {
             steps {
                 script {
