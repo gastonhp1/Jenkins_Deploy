@@ -29,20 +29,27 @@ pipeline {
     stages {
         stage("Checkout SCM") {
             steps {
-                git branch: "main", url: env.GIT_REPO_URL, credentialsId: env.TF_VAR_SSH_CREDENTIALS_USR
+                git branch: "main", url: env.GIT_REPO_URL
             }
         }
         stage("Setup virtual machine settings") {
             steps {
                 script {
-                    echo "Setup credentials in cloud-config.yml"
-                    sh "sed -i 's/user: .*/user: $TF_VAR_SSH_CREDENTIALS_USR/' ${WORKSPACE}/config/cloud_init.yml"
-                    sh "sed -i 's/password: .*/password: $TF_VAR_SSH_CREDENTIALS_PSW/' ${WORKSPACE}/config/cloud_init.yml"
-                    def escapedKey = TF_VAR_SSH_AUTHORIZED_KEY.replaceAll("[/\\\\&]", { '\\\\' + it })
-                    sh "sed -i \"s/ssh_authorized_keys: .*/ssh_authorized_keys: \\\\n - ${escapedKey}/\" ${WORKSPACE}/config/cloud_init.yml"
-                    sh "ls -lrt"
-                    echo "Build number:"
-                    echo env.BUILD_ID
+                    echo "Setup hostname in cloud-config.yml"
+                    def cloudInitContent = """
+#cloud-config
+# vim: syntax
+instance-id: ${TF_VAR_HOSTNAME}-${BUILD_ID}
+local-hostname: ${TF_VAR_HOSTNAME}
+user: ${TF_VAR_SSH_CREDENTIALS_USR}
+password: ${TF_VAR_SSH_CREDENTIALS_PSW}
+chpasswd: {expire: false}
+ssh_pwauth: True
+ssh_authorized_keys:
+  - ${TF_VAR_SSH_AUTHORIZED_KEY}
+"""
+                    writeFile file: "${WORKSPACE}/config/cloud_init.yml", text: cloudInitContent
+                    sh "cat ${WORKSPACE}/config/cloud_init.yml"
                 }
             }
         }
